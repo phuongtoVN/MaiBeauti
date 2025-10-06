@@ -1,28 +1,36 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
 import { Sparkles, Camera, MessageCircle, ShoppingBag, TrendingUp, Star } from 'lucide-react';
 
 export default function LandingPage() {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50">
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-rose-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => router.push('/')}
+              className="flex items-center space-x-2 cursor-pointer"
+            >
               <Sparkles className="w-8 h-8 text-rose-500" />
               <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
                 MaiBeauti
               </span>
-            </div>
+            </button>
             <div className="flex space-x-6">
-              <a href="/analyze" className="text-gray-700 hover:text-rose-500 transition">
+              <button onClick={() => router.push('/analyze')} className="text-gray-700 hover:text-rose-500 transition">
                 Analyze
-              </a>
-              <a href="/products" className="text-gray-700 hover:text-rose-500 transition">
+              </button>
+              <button onClick={() => router.push('/products')} className="text-gray-700 hover:text-rose-500 transition">
                 Products
-              </a>
-              <a href="/login" className="px-4 py-2 bg-rose-500 text-white rounded-full hover:bg-rose-600 transition">
+              </button>
+              <button onClick={() => router.push('/login')} className="px-4 py-2 bg-rose-500 text-white rounded-full hover:bg-rose-600 transition">
                 Sign In
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -41,20 +49,20 @@ export default function LandingPage() {
             Get AI-powered skin analysis in seconds. Receive personalized product recommendations from Mai, your intelligent skincare advisor.
           </p>
           <div className="flex justify-center space-x-4">
-            <a 
-              href="/analyze" 
+            <button 
+              onClick={() => router.push('/analyze')}
               className="px-8 py-4 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition flex items-center space-x-2"
             >
               <Camera className="w-5 h-5" />
               <span>Analyze Your Skin</span>
-            </a>
-            <a 
-              href="/chat" 
+            </button>
+            <button 
+              onClick={() => router.push('/chat')}
               className="px-8 py-4 bg-white text-rose-600 border-2 border-rose-500 rounded-full text-lg font-semibold hover:bg-rose-50 transition flex items-center space-x-2"
             >
               <MessageCircle className="w-5 h-5" />
               <span>Chat with Mai</span>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -163,13 +171,13 @@ export default function LandingPage() {
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Join thousands of users who have discovered their perfect skincare routine with MaiBeauti
           </p>
-          <a 
-            href="/analyze" 
+          <button 
+            onClick={() => router.push('/analyze')}
             className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full text-lg font-semibold hover:shadow-lg transform hover:scale-105 transition"
           >
             <Sparkles className="w-5 h-5" />
             <span>Start Free Analysis</span>
-          </a>
+          </button>
         </div>
       </section>
 
@@ -189,25 +197,25 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold mb-4">Product</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/analyze" className="hover:text-white transition">Skin Analysis</a></li>
-                <li><a href="/chat" className="hover:text-white transition">AI Consultant</a></li>
-                <li><a href="/products" className="hover:text-white transition">Shop Products</a></li>
+                <li><button onClick={() => router.push('/analyze')} className="hover:text-white transition">Skin Analysis</button></li>
+                <li><button onClick={() => router.push('/chat')} className="hover:text-white transition">AI Consultant</button></li>
+                <li><button onClick={() => router.push('/products')} className="hover:text-white transition">Shop Products</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/about" className="hover:text-white transition">About Us</a></li>
-                <li><a href="/contact" className="hover:text-white transition">Contact</a></li>
-                <li><a href="/privacy" className="hover:text-white transition">Privacy Policy</a></li>
+                <li><button onClick={() => router.push('/about')} className="hover:text-white transition">About Us</button></li>
+                <li><button onClick={() => router.push('/contact')} className="hover:text-white transition">Contact</button></li>
+                <li><button onClick={() => router.push('/privacy')} className="hover:text-white transition">Privacy Policy</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold mb-4">Support</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/faq" className="hover:text-white transition">FAQ</a></li>
-                <li><a href="/help" className="hover:text-white transition">Help Center</a></li>
-                <li><a href="/shipping" className="hover:text-white transition">Shipping Info</a></li>
+                <li><button onClick={() => router.push('/faq')} className="hover:text-white transition">FAQ</button></li>
+                <li><button onClick={() => router.push('/help')} className="hover:text-white transition">Help Center</button></li>
+                <li><button onClick={() => router.push('/shipping')} className="hover:text-white transition">Shipping Info</button></li>
               </ul>
             </div>
           </div>
