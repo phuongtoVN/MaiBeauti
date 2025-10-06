@@ -1,6 +1,7 @@
 'use client';
 import Footer from '@/components/Footer';
 import { useState } from 'react';
+import Header from '@/components/Header';
 import { 
   Sparkles, 
   Search, 
@@ -666,27 +667,7 @@ export default function HelpCenterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-rose-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <button 
-              onClick={() => router.push('/')}
-              className="flex items-center space-x-2 cursor-pointer"
-            >
-              <Sparkles className="w-8 h-8 text-rose-500" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-                MaiBeauti
-              </span>
-            </button>
-            <button
-              onClick={() => router.push('/analyze')}
-              className="px-6 py-2 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg transition"
-            >
-              Try Free Analysis
-            </button>
-          </div>
-        </div>
-      </nav>
+      <Header />
 
       {selectedArticle ? (
         // Article View
