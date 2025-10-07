@@ -1,240 +1,237 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Sparkles, ArrowLeft, MessageCircle, ShoppingBag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Header from '@/components/Header';
+import ScoreGauge from '@/components/results/ScoreGauge';
+import ConcernCard from '@/components/results/ConcernCard';
+import ProductCarousel from '@/components/results/ProductCarousel';
+import KitShowcase from '@/components/results/KitShowcase';
+import BeforeAfterCard from '@/components/results/BeforeAfterCard';
+import { mockAnalysisResults, mockTestimonials, AnalysisResult } from '@/lib/mockAnalysisData';
+import { getRecommendedProducts, generatePersonalizedKit } from '@/lib/mockRecommendations';
+import { MessageCircle, X, Sparkles } from 'lucide-react';
 
-interface AnalysisData {
-    skinQualityScore: number | null;
-    acneLevel: string;
-    darkCircles: string;
-    poresLevel: string;
-    wrinkleLevel: string;
-    skinTone: string;
-    concerns: string[];
-    recommendations: string[];
-    imageUrl: string;
-}
-
-export default function ResultsPage() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const analysisId = searchParams.get('id');
+export default function AnalysisResultsPage() {
+  const searchParams = useSearchParams();
+  const analysisId = searchParams.get('id') || 'demo-1';
   
-    const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    useEffect(() => {
-        // Fetch analysis data from API
-        const fetchAnalysis = async () => {
-        if (!analysisId) {
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/get-analysis?id=${analysisId}`);
-            const data = await response.json();
-            
-            if (data.success) {
-            setAnalysis(data.analysis);
-            }
-        } catch (error) {
-            console.error('Failed to fetch analysis:', error);
-        } finally {
-            setLoading(false);
-        }
-        };
-
-        fetchAnalysis();
-    }, [analysisId]);
-
-    if (loading) {
-        return (
-        <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-            <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading your results...</p>
-            </div>
-        </div>
-        );
-    }
-
-    if (!analysis) {
-        return (
-        <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50 flex items-center justify-center">
-            <div className="text-center">
-            <p className="text-xl text-gray-700 mb-4">Analysis not found</p>
-            <button
-                onClick={() => router.push('/analyze')}
-                className="px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full font-semibold"
-            >
-                Start New Analysis
-            </button>
-            </div>
-        </div>
-        );
-    }
-
-    const getScoreColor = (score: number) => {
-        if (score >= 80) return 'text-green-600';
-        if (score >= 60) return 'text-yellow-600';
-        return 'text-orange-600';
-    };
-
-    const getScoreLabel = (score: number) => {
-        if (score >= 80) return 'Excellent';
-        if (score >= 60) return 'Good';
-        if (score >= 40) return 'Fair';
-        return 'Needs Attention';
-    };
-
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  
+  useEffect(() => {
+    // Load analysis results
+    const result = mockAnalysisResults[analysisId] || mockAnalysisResults['demo-1'];
+    setAnalysis(result);
+  }, [analysisId]);
+  
+  if (!analysis) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50">
-        {/* Navigation */}
-        <nav className="bg-white/80 backdrop-blur-md border-b border-rose-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-                <button
-                onClick={() => router.push('/analyze')}
-                className="flex items-center space-x-2 text-gray-700 hover:text-rose-500 transition"
-                >
-                <ArrowLeft className="w-5 h-5" />
-                <span>New Analysis</span>
-                </button>
-                <div className="flex items-center space-x-2">
-                <Sparkles className="w-8 h-8 text-rose-500" />
-                <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-                    MaiBeauti
-                </span>
-                </div>
-                <div className="w-24" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Analyzing your skin...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  const recommendedProducts = getRecommendedProducts(analysis, 5);
+  const personalizedKit = generatePersonalizedKit(analysis);
+  
+  const handleAddToCart = (product: any) => {
+    console.log('Adding to cart:', product);
+    alert(`Added ${product.name} to cart!`);
+  };
+  
+  const handleGetKit = () => {
+    console.log('Getting complete kit');
+    alert('Proceeding to checkout with your personalized kit!');
+  };
+  
+  const handleFixConcern = (concernId: string) => {
+    // Scroll to product recommendations
+    document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50">
+      <Header />
+      
+      {/* Hero Section */}
+      <section className="pt-32 pb-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold mb-4">
+              <Sparkles className="w-4 h-4" />
+              Analysis Complete
             </div>
-            </div>
-        </nav>
-
-        {/* Results Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Your Skin Analysis Results
+            <h1 className="text-5xl md:text-6xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
+                {analysis.userName ? `${analysis.userName}'s` : 'Your'} Skin Analysis
+              </span>
             </h1>
-            <p className="text-lg text-gray-600">
-                {"Here's what we discovered about your skin"}
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              We've identified your key concerns and created a personalized treatment plan
             </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Image */}
-            <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-                <img 
-                    src={analysis.imageUrl}
-                    alt="Your photo"
-                    className="w-full rounded-xl mb-4"
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            {/* Analyzed Photo */}
+            <div className="relative">
+              <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
+                <img
+                  src={analysis.imageUrl}
+                  alt="Your skin analysis"
+                  className="w-full h-full object-cover"
                 />
-                {analysis.skinQualityScore !== null && (
-                    <div className="text-center p-6 bg-gradient-to-br from-rose-50 to-purple-50 rounded-xl">
-                    <p className="text-sm text-gray-600 mb-2">Overall Skin Score</p>
-                    <p className={`text-5xl font-bold ${getScoreColor(analysis.skinQualityScore)}`}>
-                        {Math.round(analysis.skinQualityScore)}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-2">
-                        {getScoreLabel(analysis.skinQualityScore)}
-                    </p>
-                    </div>
-                )}
-                </div>
+              </div>
+              <div className="absolute -bottom-4 -right-4 bg-white rounded-2xl shadow-xl p-4">
+                <div className="text-sm text-gray-600 mb-1">Skin Type</div>
+                <div className="text-xl font-bold text-gray-900">{analysis.skinType}</div>
+              </div>
             </div>
-
-            {/* Right Column - Analysis Details */}
-            <div className="lg:col-span-2 space-y-6">
-                {/* Skin Metrics */}
-                <div className="bg-white rounded-2xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Skin Metrics</h2>
-                <div className="grid grid-cols-2 gap-4">
-                    <MetricCard label="Acne Level" value={analysis.acneLevel} />
-                    <MetricCard label="Dark Circles" value={analysis.darkCircles} />
-                    <MetricCard label="Pores" value={analysis.poresLevel} />
-                    <MetricCard label="Wrinkles" value={analysis.wrinkleLevel} />
-                </div>
-                </div>
-
-                {/* Concerns */}
-                {analysis.concerns.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Primary Concerns</h2>
-                    <div className="flex flex-wrap gap-3">
-                    {analysis.concerns.map((concern, index) => (
-                        <span
-                        key={index}
-                        className="px-4 py-2 bg-rose-100 text-rose-700 rounded-full font-medium capitalize"
-                        >
-                        {concern}
-                        </span>
-                    ))}
-                    </div>
-                </div>
-                )}
-
-                {/* Recommendations */}
-                <div className="bg-gradient-to-br from-rose-50 to-purple-50 rounded-2xl p-8 border border-rose-100">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Personalized Recommendations</h2>
-                <ul className="space-y-4">
-                    {analysis.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start">
-                        <Sparkles className="w-5 h-5 text-rose-500 mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{rec}</span>
-                    </li>
-                    ))}
-                </ul>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                    onClick={() => router.push('/chat')}
-                    className="px-6 py-4 bg-white border-2 border-rose-500 text-rose-600 rounded-xl font-semibold hover:bg-rose-50 transition flex items-center justify-center space-x-2"
-                >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>Chat with Mai</span>
-                </button>
-                <button
-                    onClick={() => router.push('/products')}
-                    className="px-6 py-4 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition flex items-center justify-center space-x-2"
-                >
-                    <ShoppingBag className="w-5 h-5" />
-                    <span>Shop Recommended Products</span>
-                </button>
-                </div>
+            
+            {/* Score Gauge */}
+            <div className="flex flex-col items-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Your Skin Quality Score
+              </h2>
+              <ScoreGauge score={analysis.skinQualityScore} size={250} strokeWidth={16} />
+              <p className="text-gray-600 mt-6 text-center max-w-md">
+                Based on our AI analysis, your skin shows potential for significant improvement with the right routine.
+              </p>
             </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Concerns Grid */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Your Primary Skin Concerns
+            </h2>
+            <p className="text-xl text-gray-600">
+              Let's address these issues with targeted treatments
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {analysis.primaryConcerns.map((concern) => (
+              <ConcernCard
+                key={concern.id}
+                concern={concern}
+                onFixClick={() => handleFixConcern(concern.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* Product Recommendations */}
+      <section id="products-section" className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Your Personalized Product Recommendations
+            </h2>
+            <p className="text-xl text-gray-600">
+              Hand-picked solutions based on your unique skin profile
+            </p>
+          </div>
+          
+          <ProductCarousel
+            products={recommendedProducts}
+            onAddToCart={handleAddToCart}
+          />
+        </div>
+      </section>
+      
+      {/* Complete Kit Showcase */}
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <KitShowcase
+            kit={personalizedKit}
+            onGetKit={handleGetKit}
+          />
+        </div>
+      </section>
+      
+      {/* Social Proof - Before/After */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Real Results from Real People
+            </h2>
+            <p className="text-xl text-gray-600">
+              Join thousands who've transformed their skin with MaiBeauti
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {mockTestimonials.map((testimonial) => (
+              <BeforeAfterCard
+                key={testimonial.id}
+                testimonial={testimonial}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* Final CTA */}
+      <section className="py-20 px-4 bg-gradient-to-r from-rose-500 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Ready to Transform Your Skin?
+          </h2>
+          <p className="text-xl mb-8 opacity-90">
+            Your personalized routine is waiting. Start your journey to healthier, more radiant skin today.
+          </p>
+          <button
+            onClick={handleGetKit}
+            className="px-12 py-5 bg-white text-rose-600 font-bold text-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+          >
+            Get My Complete Kit - ${personalizedKit.bundlePrice}
+          </button>
+          <p className="mt-6 text-sm opacity-75">
+            ✓ 30-Day Money-Back Guarantee  ✓ Free Shipping Over $50  ✓ Expert Support
+          </p>
+        </div>
+      </section>
+      
+      {/* Floating Chat Button (Mobile) */}
+      <button
+        onClick={() => setShowChat(true)}
+        className="md:hidden fixed bottom-6 right-6 z-40 p-4 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full shadow-2xl hover:scale-110 transition-all duration-300"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </button>
+      
+      {/* Mobile Chat Modal */}
+      {showChat && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Chat with Mai</h3>
+              <button
+                onClick={() => setShowChat(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+            <div className="p-6">
+              <p className="text-gray-600 text-center">
+                Chat functionality coming soon! For now, explore your personalized recommendations above.
+              </p>
+            </div>
+          </div>
         </div>
-        </div>
-    );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-    const numValue = parseFloat(value);
-    const getColor = () => {
-        if (isNaN(numValue)) return 'bg-gray-100 text-gray-700';
-        if (numValue < 30) return 'bg-green-100 text-green-700';
-        if (numValue < 60) return 'bg-yellow-100 text-yellow-700';
-        return 'bg-orange-100 text-orange-700';
-    };
-
-    const getLabel = () => {
-        if (isNaN(numValue)) return value;
-        if (numValue < 30) return 'Low';
-        if (numValue < 60) return 'Moderate';
-        return 'High';
-    };
-
-    return (
-        <div className="p-4 bg-gray-50 rounded-xl">
-        <p className="text-sm text-gray-600 mb-2">{label}</p>
-        <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getColor()}`}>
-            {getLabel()}
-        </span>
-        </div>
-    );
+      )}
+    </div>
+  );
 }
