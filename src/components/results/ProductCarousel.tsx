@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Star, ShoppingCart } from 'lucide-react';
 
 interface ProductCarouselProps {
   products: Product[];
-  onAddToCart?: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
   autoRotate?: boolean;
   rotateInterval?: number;
 }
@@ -38,12 +38,17 @@ export default function ProductCarousel({
     
     const interval = setInterval(nextSlide, rotateInterval);
     return () => clearInterval(interval);
-  }, [autoRotate, isPaused, rotateInterval, currentIndex]);
+  }, [autoRotate, isPaused, rotateInterval, currentIndex, products.length]);
   
   if (products.length === 0) return null;
   
   const currentProduct = products[currentIndex];
   const hasDiscount = currentProduct.discountPrice && currentProduct.discountPrice < currentProduct.price;
+  
+  const handleAddClick = () => {
+    console.log('ProductCarousel: Add to Kit clicked for:', currentProduct.name);
+    onAddToCart(currentProduct);
+  };
   
   return (
     <div
@@ -139,7 +144,7 @@ export default function ProductCarousel({
               </div>
               
               <button
-                onClick={() => onAddToCart && onAddToCart(currentProduct)}
+                onClick={handleAddClick}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <ShoppingCart className="w-5 h-5" />

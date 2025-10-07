@@ -1,44 +1,67 @@
 import { create } from 'zustand';
 
-interface ChatState {
-  conversationId: string;
-  messages: Message[];
-  currentNode: string;
-  userSelections: Record<string, string>;
-  cartItems: string[];
-  
-  addMessage: (message: Message) => void;
-  setCurrentNode: (nodeId: string) => void;
-  addUserSelection: (key: string, value: string) => void;
-  addToCart: (productId: string) => void;
-  resetChat: () => void;
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
+  products?: any[]; // Product recommendations in message
+  options?: string[]; // Button options for decision tree
 }
 
-export const useChatStore = create<ChatState>((set) => ({
-  conversationId: '',
+interface ChatStore {
+  messages: ChatMessage[];
+  isTyping: boolean;
+  conversationPath: string[]; // Track decision tree path
+  
+  // Actions
+  addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
+  clearMessages: () => void;
+  setIsTyping: (isTyping: boolean) => void;
+  addToPath: (nodeId: string) => void;
+  resetPath: () => void;
+  
+  // Helper
+  getLastMessage: () => ChatMessage | undefined;
+}
+
+export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
-  currentNode: 'initial',
-  userSelections: {},
-  cartItems: [],
-  
-  addMessage: (message) => set((state) => ({
-    messages: [...state.messages, message]
-  })),
-  
-  setCurrentNode: (nodeId) => set({ currentNode: nodeId }),
-  
-  addUserSelection: (key, value) => set((state) => ({
-    userSelections: { ...state.userSelections, [key]: value }
-  })),
-  
-  addToCart: (productId) => set((state) => ({
-    cartItems: [...state.cartItems, productId]
-  })),
-  
-  resetChat: () => set({
-    messages: [],
-    currentNode: 'initial',
-    userSelections: {},
-    conversationId: Date.now().toString()
-  })
+  isTyping: false,
+  conversationPath: [],
+
+  addMessage: (message) => {
+    const newMessage: ChatMessage = {
+      ...message,
+      id: `msg-${Date.now()}-${Math.random()}`,
+      timestamp: new Date(),
+    };
+
+    set((state) => ({
+      messages: [...state.messages, newMessage],
+    }));
+  },
+
+  clearMessages: () => {
+    set({ messages: [], conversationPath: [] });
+  },
+
+  setIsTyping: (isTyping) => {
+    set({ isTyping });
+  },
+
+  addToPath: (nodeId) => {
+    set((state) => ({
+      conversationPath: [...state.conversationPath, nodeId],
+    }));
+  },
+
+  resetPath: () => {
+    set({ conversationPath: [] });
+  },
+
+  getLastMessage: () => {
+    const messages = get().messages;
+    return messages[messages.length - 1];
+  },
 }));

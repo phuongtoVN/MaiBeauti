@@ -10,6 +10,9 @@ import KitShowcase from '@/components/results/KitShowcase';
 import BeforeAfterCard from '@/components/results/BeforeAfterCard';
 import { mockAnalysisResults, mockTestimonials, AnalysisResult } from '@/lib/mockAnalysisData';
 import { getRecommendedProducts, generatePersonalizedKit } from '@/lib/mockRecommendations';
+import { useCartStore } from '@/store/cartStore';
+import { useAnalysisStore } from '@/store/analysisStore';
+import { useToastStore } from '@/store/toastStore';
 import { MessageCircle, X, Sparkles } from 'lucide-react';
 
 export default function AnalysisResultsPage() {
@@ -19,12 +22,22 @@ export default function AnalysisResultsPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [showChat, setShowChat] = useState(false);
   
+  const { addItem, openCart, clearCart } = useCartStore();
+  const { setCurrentAnalysis, setPersonalizedKit } = useAnalysisStore();
+  const { addToast } = useToastStore();
+  
+  // Load analysis results - only runs when analysisId changes
   useEffect(() => {
-    // Load analysis results
     const result = mockAnalysisResults[analysisId] || mockAnalysisResults['demo-1'];
     setAnalysis(result);
-  }, [analysisId]);
+    setCurrentAnalysis(result);
+    
+    // Generate and save kit immediately when analysis loads
+    const kit = generatePersonalizedKit(result);
+    setPersonalizedKit(kit);
+  }, [analysisId, setCurrentAnalysis, setPersonalizedKit]);
   
+  // NOW we can do conditional rendering
   if (!analysis) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -36,17 +49,34 @@ export default function AnalysisResultsPage() {
     );
   }
   
+  // Generate products and kit after analysis is loaded
   const recommendedProducts = getRecommendedProducts(analysis, 5);
   const personalizedKit = generatePersonalizedKit(analysis);
   
   const handleAddToCart = (product: any) => {
-    console.log('Adding to cart:', product);
-    alert(`Added ${product.name} to cart!`);
+    console.log('Results page: Adding to cart ->', product.name);
+    console.log('Product object:', product);
+    addItem(product);
+    addToast(`Added ${product.name} to cart!`, 'success');
+    console.log('Results page: Opening cart');
+    openCart();
   };
   
   const handleGetKit = () => {
-    console.log('Getting complete kit');
-    alert('Proceeding to checkout with your personalized kit!');
+    // Add all kit products to cart
+    clearCart(); // Clear existing cart first
+    
+    const allKitProducts = new Set([
+      ...personalizedKit.morningRoutine.map(step => step.product),
+      ...personalizedKit.eveningRoutine.map(step => step.product)
+    ]);
+    
+    allKitProducts.forEach(product => {
+      addItem(product);
+    });
+    
+    addToast(`Added complete kit (${allKitProducts.size} products) to cart!`, 'success');
+    openCart();
   };
   
   const handleFixConcern = (concernId: string) => {
@@ -131,33 +161,37 @@ export default function AnalysisResultsPage() {
       </section>
       
       {/* Product Recommendations */}
-      <section id="products-section" className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Your Personalized Product Recommendations
-            </h2>
-            <p className="text-xl text-gray-600">
-              Hand-picked solutions based on your unique skin profile
-            </p>
+      {recommendedProducts.length > 0 && (
+        <section id="products-section" className="py-16 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                Your Personalized Product Recommendations
+              </h2>
+              <p className="text-xl text-gray-600">
+                Hand-picked solutions based on your unique skin profile
+              </p>
+            </div>
+            
+            <ProductCarousel
+              products={recommendedProducts}
+              onAddToCart={handleAddToCart}
+            />
           </div>
-          
-          <ProductCarousel
-            products={recommendedProducts}
-            onAddToCart={handleAddToCart}
-          />
-        </div>
-      </section>
+        </section>
+      )}
       
       {/* Complete Kit Showcase */}
-      <section className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <KitShowcase
-            kit={personalizedKit}
-            onGetKit={handleGetKit}
-          />
-        </div>
-      </section>
+      {personalizedKit && (
+        <section className="py-16 px-4">
+          <div className="max-w-7xl mx-auto">
+            <KitShowcase
+              kit={personalizedKit}
+              onGetKit={handleGetKit}
+            />
+          </div>
+        </section>
+      )}
       
       {/* Social Proof - Before/After */}
       <section className="py-16 px-4 bg-white">
@@ -183,25 +217,27 @@ export default function AnalysisResultsPage() {
       </section>
       
       {/* Final CTA */}
-      <section className="py-20 px-4 bg-gradient-to-r from-rose-500 to-purple-600">
-        <div className="max-w-4xl mx-auto text-center text-white">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to Transform Your Skin?
-          </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Your personalized routine is waiting. Start your journey to healthier, more radiant skin today.
-          </p>
-          <button
-            onClick={handleGetKit}
-            className="px-12 py-5 bg-white text-rose-600 font-bold text-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
-          >
-            Get My Complete Kit - ${personalizedKit.bundlePrice}
-          </button>
-          <p className="mt-6 text-sm opacity-75">
-            ✓ 30-Day Money-Back Guarantee  ✓ Free Shipping Over $50  ✓ Expert Support
-          </p>
-        </div>
-      </section>
+      {personalizedKit && (
+        <section className="py-20 px-4 bg-gradient-to-r from-rose-500 to-purple-600">
+          <div className="max-w-4xl mx-auto text-center text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Ready to Transform Your Skin?
+            </h2>
+            <p className="text-xl mb-8 opacity-90">
+              Your personalized routine is waiting. Start your journey to healthier, more radiant skin today.
+            </p>
+            <button
+              onClick={handleGetKit}
+              className="px-12 py-5 bg-white text-rose-600 font-bold text-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+            >
+              Get My Complete Kit - ${personalizedKit.bundlePrice}
+            </button>
+            <p className="mt-6 text-sm opacity-75">
+              ✓ 30-Day Money-Back Guarantee  ✓ Free Shipping Over $50  ✓ Expert Support
+            </p>
+          </div>
+        </section>
+      )}
       
       {/* Floating Chat Button (Mobile) */}
       <button

@@ -1,143 +1,143 @@
 'use client';
 
-import React from 'react';
-import { Product } from '@/lib/products';
-import { Star, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Menu, X, ShoppingCart } from 'lucide-react';
+import { useCartStore } from '@/store/cartStore';
 
-interface ProductCardProps {
-  product: Product;
-  onAddToCart?: (product: Product) => void;
-}
+export default function Header() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const cartStore = useCartStore();
+  const cartItemCount = cartStore.getTotalItems();
 
-export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const hasDiscount = product.discountPrice && product.discountPrice < product.price;
-  const discountPercentage = hasDiscount 
-    ? Math.round(((product.price - product.discountPrice!) / product.price) * 100)
-    : 0;
+  // Prevent hydration mismatch - only show cart count after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleCartClick = () => {
+    console.log('Cart clicked, opening cart...');
+    cartStore.openCart();
+  };
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+
+  const closeMenu = () => {
+    setIsOpen(false);
+  };
 
   return (
-    <div className="group relative bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-      {/* Badges */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-        {product.bestseller && (
-          <span className="bg-gradient-to-r from-rose-500 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-            BESTSELLER
-          </span>
-        )}
-        {product.new && (
-          <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            NEW
-          </span>
-        )}
-        {hasDiscount && (
-          <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            -{discountPercentage}%
-          </span>
-        )}
-      </div>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md shadow-sm">
+      <nav className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
+          MaiBeauti
+        </Link>
 
-      {/* Out of Stock Overlay */}
-      {!product.inStock && (
-        <div className="absolute inset-0 bg-black/60 z-20 flex items-center justify-center">
-          <span className="text-white text-xl font-bold">OUT OF STOCK</span>
-        </div>
-      )}
-
-      {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-      </div>
-
-      {/* Product Info */}
-      <div className="p-6">
-        {/* Category */}
-        <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2">
-          {product.category}
-        </p>
-
-        {/* Product Name */}
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">
-          {product.name}
-        </h3>
-
-        {/* Rating */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex items-center">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-4 h-4 ${
-                  i < Math.floor(product.rating)
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'fill-gray-200 text-gray-200'
-                }`}
-              />
-            ))}
-          </div>
-          <span className="text-sm text-gray-600">
-            {product.rating} ({product.reviewCount})
-          </span>
-        </div>
-
-        {/* Best For Tags */}
-        {product.concerns.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {product.concerns.slice(0, 2).map((concern) => (
-              <span
-                key={concern}
-                className="text-xs bg-rose-50 text-rose-700 px-2 py-1 rounded-full"
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-8">
+          <Link href="/analyze" className="text-gray-700 hover:text-rose-500 font-medium transition-colors">
+            Analyze
+          </Link>
+          <Link href="/products" className="text-gray-700 hover:text-rose-500 font-medium transition-colors">
+            Products
+          </Link>
+          <Link href="/chat" className="text-gray-700 hover:text-rose-500 font-medium transition-colors">
+            Chat
+          </Link>
+          
+          {/* Cart Button */}
+          <button
+            onClick={handleCartClick}
+            className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Shopping cart"
+            suppressHydrationWarning
+          >
+            <ShoppingCart className="w-6 h-6 text-gray-700" />
+            {mounted && cartItemCount > 0 && (
+              <span 
+                className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-rose-500 to-purple-600 text-white text-xs font-bold rounded-full flex items-center justify-center"
+                suppressHydrationWarning
               >
-                {concern.split('-').join(' ')}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Description */}
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-          {product.description}
-        </p>
-
-        {/* Price and CTA */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
-            {hasDiscount ? (
-              <>
-                <span className="text-2xl font-bold text-gray-900">
-                  ${product.discountPrice}
-                </span>
-                <span className="text-sm text-gray-500 line-through">
-                  ${product.price}
-                </span>
-              </>
-            ) : (
-              <span className="text-2xl font-bold text-gray-900">
-                ${product.price}
+                {cartItemCount > 9 ? '9+' : cartItemCount}
               </span>
             )}
-          </div>
-
-          <button
-            onClick={() => onAddToCart && onAddToCart(product)}
-            disabled={!product.inStock}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
-              product.inStock
-                ? 'bg-gradient-to-r from-rose-500 to-purple-600 text-white hover:shadow-lg hover:scale-105'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span className="hidden sm:inline">Add</span>
           </button>
+          
+          <Link href="/signin" className="px-6 py-2 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300">
+            Sign In
+          </Link>
         </div>
 
-        {/* Size Info */}
-        <p className="text-xs text-gray-500 mt-3">Size: {product.size}</p>
-      </div>
-    </div>
+        {/* Mobile Actions */}
+        <div className="md:hidden flex items-center gap-3">
+          {/* Mobile Cart Button */}
+          <button
+            onClick={handleCartClick}
+            className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Shopping cart"
+          >
+            <ShoppingCart className="w-6 h-6 text-gray-700" />
+            {mounted && cartItemCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-rose-500 to-purple-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {cartItemCount > 9 ? '9+' : cartItemCount}
+              </span>
+            )}
+          </button>
+          
+          {/* Mobile Menu Button */}
+          <button
+            onClick={toggleMenu}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Toggle menu"
+          >
+            {isOpen ? (
+              <X className="w-6 h-6 text-gray-700" />
+            ) : (
+              <Menu className="w-6 h-6 text-gray-700" />
+            )}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
+          <div className="px-4 py-6 space-y-4">
+            <Link
+              href="/analyze"
+              onClick={closeMenu}
+              className="block text-gray-700 hover:text-rose-500 font-medium py-2 transition-colors"
+            >
+              Analyze
+            </Link>
+            <Link
+              href="/products"
+              onClick={closeMenu}
+              className="block text-gray-700 hover:text-rose-500 font-medium py-2 transition-colors"
+            >
+              Products
+            </Link>
+            <Link
+              href="/chat"
+              onClick={closeMenu}
+              className="block text-gray-700 hover:text-rose-500 font-medium py-2 transition-colors"
+            >
+              Chat
+            </Link>
+            <Link
+              href="/signin"
+              onClick={closeMenu}
+              className="block w-full px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-semibold rounded-lg text-center hover:shadow-lg transition-all duration-300"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
   );
 }
