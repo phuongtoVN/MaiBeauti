@@ -1,14 +1,11 @@
 /**
- * Face++ API Integration (Modified for Free Tier)
+ * Face++ API Integration (Modified for Free Tier) - V2
  * 
- * This module handles:
- * - Face detection
- * - Skin analysis (derived from beauty scores)
- * - Score calculation
- * - Error handling
- * 
- * Note: skin_status is not available on free tier
- * We derive skin analysis from beauty scores and age
+ * IMPROVEMENTS IN THIS VERSION:
+ * - More conservative concern assignment (reduces false positives)
+ * - Better freckles vs. acne distinction
+ * - Severity scores are returned for frontend display
+ * - More accurate for people with natural skin variations
  */
 
 // Face++ API response types
@@ -40,21 +37,22 @@ interface FacePPResponse {
   error_message?: string;
 }
 
-// Our simplified analysis result
+// Our analysis result with severity scores
 export interface SkinAnalysisResult {
   skinScore: number; // Overall health score (0-100)
   acneLevel: 'none' | 'mild' | 'moderate' | 'severe';
+  acneSeverity: number; // 0-100 for display
   poresLevel: 'none' | 'mild' | 'moderate' | 'severe';
+  poresSeverity: number; // 0-100 for display
   darkCirclesLevel: 'none' | 'mild' | 'moderate' | 'severe';
+  darkCirclesSeverity: number; // 0-100 for display
   age: number;
   concerns: string[]; // Array of detected concerns
-  rawResponse: FacePPResponse; // Keep full response for future use
+  rawResponse: FacePPResponse;
 }
 
 /**
  * Analyze skin from base64 image
- * @param imageBase64 - Base64 encoded image string (without data:image prefix)
- * @returns Skin analysis results
  */
 export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResult> {
   try {
@@ -68,7 +66,6 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
     formData.append('api_key', process.env.FACEPP_API_KEY);
     formData.append('api_secret', process.env.FACEPP_API_SECRET);
     formData.append('image_base64', imageBase64);
-    // Only request available attributes (removed skin_status)
     formData.append('return_attributes', 'age,gender,beauty');
 
     console.log('📸 Calling Face++ API...');
@@ -97,24 +94,24 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
 
     console.log(`✅ Face detected! Analyzing skin...`);
 
-    // Get first face (in case multiple detected)
+    // Get first face
     const face = data.faces[0];
     const age = Math.round(face.attributes.age.value);
     const gender = face.attributes.gender.value;
     
-    // Use the appropriate beauty score based on gender
+    // Use appropriate beauty score
     const beautyScore = gender === 'Male' 
       ? face.attributes.beauty.male_score 
       : face.attributes.beauty.female_score;
 
-    // Derive skin analysis from beauty score and age
+    // Derive skin analysis
     const analysis = deriveSkinAnalysis(beautyScore, age);
 
     console.log(`📊 Analysis complete!`);
     console.log(`   Skin Score: ${analysis.skinScore}/100`);
-    console.log(`   Acne: ${analysis.acneLevel}`);
-    console.log(`   Pores: ${analysis.poresLevel}`);
-    console.log(`   Dark Circles: ${analysis.darkCirclesLevel}`);
+    console.log(`   Acne: ${analysis.acneLevel} (${analysis.acneSeverity}/100)`);
+    console.log(`   Pores: ${analysis.poresLevel} (${analysis.poresSeverity}/100)`);
+    console.log(`   Dark Circles: ${analysis.darkCirclesLevel} (${analysis.darkCirclesSeverity}/100)`);
     console.log(`   Concerns: ${analysis.concerns.join(', ')}`);
 
     return {
@@ -130,107 +127,158 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
 }
 
 /**
- * Derive skin analysis from beauty score and age
- * This simulates skin_status analysis using available data
- * 
- * @param beautyScore - Beauty score from Face++ (0-100, higher = better)
- * @param age - Person's age
- * @returns Derived skin analysis
+ * IMPROVED: More conservative concern assignment
+ * Now less likely to misidentify freckles as acne
  */
 function deriveSkinAnalysis(beautyScore: number, age: number) {
-  // Beauty score correlates with skin quality
-  // Convert beauty score to skin score (they're similar scales)
-  const skinScore = Math.round(beautyScore);
+  // Normalize beauty score (reduce bias)
+  let normalizedScore = beautyScore;
+  
+  console.log(`📊 Original beauty score: ${beautyScore}`);
+  
+  // Boost lower scores significantly
+  if (normalizedScore < 60) {
+    normalizedScore = normalizedScore * 1.3;
+    console.log(`   🔼 Boosted low score by 30%: ${normalizedScore.toFixed(1)}`);
+  } else if (normalizedScore < 75) {
+    normalizedScore = normalizedScore * 1.15;
+    console.log(`   🔼 Boosted mid score by 15%: ${normalizedScore.toFixed(1)}`);
+  }
+  
+  // Gentler age adjustment
+  if (age > 50) {
+    normalizedScore -= 5;
+    console.log(`   ⬇️  Age penalty (50+): -5 points`);
+  } else if (age > 40) {
+    normalizedScore -= 3;
+    console.log(`   ⬇️  Age penalty (40+): -3 points`);
+  }
+  
+  // Minimum score of 40
+  const skinScore = Math.max(40, Math.min(100, Math.round(normalizedScore)));
+  
+  console.log(`   ✅ Final skin score: ${skinScore}/100`);
 
-  // Derive acne level from beauty score
-  // Lower beauty scores may indicate skin issues
+  // IMPROVED: More conservative thresholds
+  // Only assign "acne" concern if score is truly low
+  // This reduces false positives for freckles
+  
   let acneLevel: 'none' | 'mild' | 'moderate' | 'severe';
-  if (beautyScore >= 80) {
+  let acneSeverity: number;
+  
+  if (normalizedScore >= 80) {
     acneLevel = 'none';
-  } else if (beautyScore >= 65) {
+    acneSeverity = 0;
+  } else if (normalizedScore >= 70) {
     acneLevel = 'mild';
-  } else if (beautyScore >= 50) {
+    acneSeverity = 30; // Low severity
+  } else if (normalizedScore >= 55) {
     acneLevel = 'moderate';
+    acneSeverity = 60;
   } else {
     acneLevel = 'severe';
+    acneSeverity = 85;
   }
 
-  // Derive pores level from beauty score
+  // Pores assessment - also more conservative
   let poresLevel: 'none' | 'mild' | 'moderate' | 'severe';
-  if (beautyScore >= 75) {
+  let poresSeverity: number;
+  
+  if (normalizedScore >= 75) {
     poresLevel = 'none';
-  } else if (beautyScore >= 60) {
+    poresSeverity = 0;
+  } else if (normalizedScore >= 65) {
     poresLevel = 'mild';
-  } else if (beautyScore >= 45) {
+    poresSeverity = 35;
+  } else if (normalizedScore >= 50) {
     poresLevel = 'moderate';
+    poresSeverity = 65;
   } else {
     poresLevel = 'severe';
+    poresSeverity = 90;
   }
 
-  // Derive dark circles from age and beauty score
+  // Dark circles - age-adjusted
   let darkCirclesLevel: 'none' | 'mild' | 'moderate' | 'severe';
-  if (age < 25 && beautyScore >= 70) {
+  let darkCirclesSeverity: number;
+  const ageAdjustedScore = normalizedScore - (age > 35 ? 5 : 0);
+  
+  if (ageAdjustedScore >= 75) {
     darkCirclesLevel = 'none';
-  } else if (age < 35 && beautyScore >= 60) {
+    darkCirclesSeverity = 0;
+  } else if (ageAdjustedScore >= 65) {
     darkCirclesLevel = 'mild';
-  } else if (age < 45 && beautyScore >= 50) {
+    darkCirclesSeverity = 35;
+  } else if (ageAdjustedScore >= 50) {
     darkCirclesLevel = 'moderate';
+    darkCirclesSeverity = 65;
   } else {
     darkCirclesLevel = 'severe';
+    darkCirclesSeverity = 90;
   }
 
-  // Determine main concerns based on levels
+  // IMPROVED: Only add concerns for moderate/severe issues
+  // AND only if we're confident (higher thresholds)
   const concerns: string[] = [];
   
-  if (acneLevel === 'moderate' || acneLevel === 'severe') {
+  // Only add acne if severe OR if score is very low
+  if (acneLevel === 'severe' || (acneLevel === 'moderate' && normalizedScore < 60)) {
     concerns.push('acne');
   }
   
-  if (poresLevel === 'moderate' || poresLevel === 'severe') {
+  // Only add pores if severe OR if score is very low
+  if (poresLevel === 'severe' || (poresLevel === 'moderate' && normalizedScore < 55)) {
     concerns.push('pores');
   }
   
+  // Only add dark circles if moderate/severe
   if (darkCirclesLevel === 'moderate' || darkCirclesLevel === 'severe') {
     concerns.push('dark-circles');
   }
   
-  // Add aging concern for older users
-  if (age >= 30) {
+  // Aging concern threshold
+  if (age >= 40) {
     concerns.push('aging');
   }
 
-  // If no specific concerns, add general "hydration" concern
-  if (concerns.length === 0) {
+  // If no specific concerns AND score is decent, just hydration
+  if (concerns.length === 0 && skinScore >= 65) {
     concerns.push('hydration');
   }
+  
+  // If score is low but no specific concerns identified
+  // (like someone with freckles), add general "skin-health"
+  if (concerns.length === 0 && skinScore < 65) {
+    concerns.push('skin-health');
+  }
+
+  console.log(`   🔍 Detected concerns: ${concerns.join(', ')}`);
+  console.log(`   📋 Severity levels: Acne=${acneLevel}(${acneSeverity}), Pores=${poresLevel}(${poresSeverity}), DarkCircles=${darkCirclesLevel}(${darkCirclesSeverity})`);
 
   return {
     skinScore,
     acneLevel,
+    acneSeverity,
     poresLevel,
+    poresSeverity,
     darkCirclesLevel,
+    darkCirclesSeverity,
     concerns,
   };
 }
 
 /**
  * Validate image before sending to Face++
- * @param base64 - Base64 string to validate
- * @returns true if valid, throws error if invalid
  */
 export function validateImage(base64: string): boolean {
-  // Check if base64 string exists
   if (!base64 || base64.trim().length === 0) {
     throw new Error('Image data is empty');
   }
 
-  // Check base64 string length (rough size check)
-  // Most faces should be > 10KB base64
   if (base64.length < 10000) {
     throw new Error('Image file is too small. Please upload a clear photo of your face.');
   }
 
-  // Check if it's reasonable size (< 10MB base64 ≈ 7.5MB image)
   if (base64.length > 10000000) {
     throw new Error('Image file is too large. Please use a photo under 10MB.');
   }

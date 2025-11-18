@@ -1,25 +1,103 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Camera, Upload, Loader2, Sparkles, ArrowLeft, X } from 'lucide-react';
+import { Camera, Upload, Loader2, Sparkles, ArrowLeft, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+// Error types for better error handling
+type ErrorType = 'face-not-detected' | 'poor-quality' | 'api-error' | 'general' | null;
+
+interface ErrorInfo {
+  type: ErrorType;
+  message: string;
+  tips: string[];
+}
 
 export default function AnalyzePage() {
   const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorInfo | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Parse API error and return appropriate error info
+  const parseError = (errorMessage: string, statusCode?: number): ErrorInfo => {
+    const lowerMessage = errorMessage.toLowerCase();
+    
+    // Face not detected
+    if (lowerMessage.includes('face') && (lowerMessage.includes('not') || lowerMessage.includes('no'))) {
+      return {
+        type: 'face-not-detected',
+        message: "We couldn't detect a clear face in your photo",
+        tips: [
+          'Face the camera directly',
+          'Use good lighting (face a window if possible)',
+          'Remove sunglasses, masks, or hats',
+          'Make sure your full face is visible',
+          'Try a different photo'
+        ]
+      };
+    }
+    
+    // Poor quality
+    if (lowerMessage.includes('quality') || lowerMessage.includes('resolution') || lowerMessage.includes('blur')) {
+      return {
+        type: 'poor-quality',
+        message: "Photo quality is too low for accurate analysis",
+        tips: [
+          'Use a higher resolution image',
+          'Ensure good lighting',
+          'Hold your camera steady',
+          'Take a new photo with your camera',
+          'Avoid heavily compressed images'
+        ]
+      };
+    }
+    
+    // API/Service errors
+    if (statusCode === 400 || statusCode === 500 || lowerMessage.includes('api') || lowerMessage.includes('service')) {
+      return {
+        type: 'api-error',
+        message: "Analysis temporarily unavailable",
+        tips: [
+          'This happens occasionally with the face detection service',
+          'Please try again in a moment',
+          'If the problem persists, try a different photo',
+          'Check your internet connection'
+        ]
+      };
+    }
+    
+    // General error
+    return {
+      type: 'general',
+      message: errorMessage || 'Failed to analyze image',
+      tips: [
+        'Please try again',
+        'Make sure your photo is clear and well-lit',
+        'If the problem persists, try a different photo'
+      ]
+    };
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+        setError({
+          type: 'general',
+          message: 'Image size must be less than 5MB',
+          tips: [
+            'Compress your image before uploading',
+            'Try taking a new photo with lower resolution',
+            'Use an online image compressor'
+          ]
+        });
         return;
       }
       
@@ -28,6 +106,17 @@ export default function AnalyzePage() {
         setSelectedImage(reader.result as string);
         setError(null);
       };
+      reader.onerror = () => {
+        setError({
+          type: 'general',
+          message: 'Failed to read image file',
+          tips: [
+            'Try a different image',
+            'Make sure the file is not corrupted',
+            'Check your device storage'
+          ]
+        });
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -35,6 +124,8 @@ export default function AnalyzePage() {
   const startCamera = async () => {
     try {
       setCameraReady(false);
+      setError(null);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -46,30 +137,43 @@ export default function AnalyzePage() {
       streamRef.current = stream;
       setShowCamera(true);
       
-      // Wait for DOM to update before setting srcObject
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           
           videoRef.current.onloadedmetadata = () => {
-            console.log('Video metadata loaded');
             videoRef.current?.play()
               .then(() => {
-                console.log('Video playing');
                 setCameraReady(true);
               })
               .catch(err => {
                 console.error('Error playing video:', err);
-                setError('Failed to start camera preview. Please try again.');
+                setError({
+                  type: 'general',
+                  message: 'Failed to start camera preview',
+                  tips: [
+                    'Try again',
+                    'Check camera permissions',
+                    'Close other apps using the camera'
+                  ]
+                });
               });
           };
         }
       }, 100);
       
-      setError(null);
-    } catch (err) {
-      setError('Could not access camera. Please check permissions.');
+    } catch (err: any) {
       console.error('Camera error:', err);
+      setError({
+        type: 'general',
+        message: 'Could not access camera',
+        tips: [
+          'Check camera permissions in your browser',
+          'Make sure no other app is using the camera',
+          'Try uploading a photo instead',
+          'Restart your browser if needed'
+        ]
+      });
     }
   };
 
@@ -89,7 +193,15 @@ export default function AnalyzePage() {
       canvas.height = videoRef.current.videoHeight;
 
       if (canvas.width === 0 || canvas.height === 0) {
-        setError('Camera not ready. Please wait a moment and try again.');
+        setError({
+          type: 'general',
+          message: 'Camera not ready',
+          tips: [
+            'Wait a moment and try again',
+            'Make sure the camera preview is showing',
+            'Try closing and reopening the camera'
+          ]
+        });
         return;
       }
       
@@ -99,12 +211,21 @@ export default function AnalyzePage() {
         const imageData = canvas.toDataURL('image/jpeg');
 
         if (!imageData || imageData === 'data:,') {
-          setError('Failed to capture photo. Please try again.');
+          setError({
+            type: 'general',
+            message: 'Failed to capture photo',
+            tips: [
+              'Try again',
+              'Make sure the camera preview is clear',
+              'Try uploading a photo instead'
+            ]
+          });
           return;
         }
         
         setSelectedImage(imageData);
         stopCamera();
+        setError(null);
       }
     }
   };
@@ -116,6 +237,8 @@ export default function AnalyzePage() {
     setError(null);
 
     try {
+      console.log('📤 Sending image to API...');
+      
       const response = await fetch('/api/analyze-skin', {
         method: 'POST',
         headers: {
@@ -125,15 +248,50 @@ export default function AnalyzePage() {
       });
 
       const data = await response.json();
+      console.log('📥 API response:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Analysis failed');
+        // Parse error based on response
+        const errorInfo = parseError(data.error || 'Analysis failed', response.status);
+        throw errorInfo;
       }
 
+      if (!data.analysisId) {
+        throw parseError('No analysis ID received');
+      }
+
+      // Save uploaded image to localStorage
+      console.log('💾 Saving image to localStorage for analysis:', data.analysisId);
+      localStorage.setItem(`analysis_image_${data.analysisId}`, selectedImage);
+      
+      // Also save timestamp for cleanup
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(`analysis_image_${data.analysisId}_timestamp`, timestamp);
+      
+      console.log('✅ Image saved successfully');
+
+      // Redirect to results page
       router.push(`/analyze/results?id=${data.analysisId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze image');
+    } catch (err: any) {
+      console.error('❌ Analysis error:', err);
+      
+      // If error is already parsed, use it
+      if (err.type) {
+        setError(err);
+      } else {
+        // Otherwise, parse it
+        setError(parseError(err.message || 'Failed to analyze image'));
+      }
+      
       setAnalyzing(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    // If there's already an image selected, retry analysis
+    if (selectedImage) {
+      handleAnalyze();
     }
   };
 
@@ -144,6 +302,74 @@ export default function AnalyzePage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  // Error display component
+  const ErrorDisplay = ({ errorInfo }: { errorInfo: ErrorInfo }) => {
+    const getErrorIcon = () => {
+      switch (errorInfo.type) {
+        case 'face-not-detected':
+          return '😊';
+        case 'poor-quality':
+          return '📷';
+        case 'api-error':
+          return '⚠️';
+        default:
+          return '❌';
+      }
+    };
+
+    const getErrorColor = () => {
+      switch (errorInfo.type) {
+        case 'api-error':
+          return 'bg-orange-50 border-orange-200 text-orange-800';
+        default:
+          return 'bg-red-50 border-red-200 text-red-800';
+      }
+    };
+
+    return (
+      <div className={`${getErrorColor()} border rounded-xl p-5 mb-4`}>
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0 text-2xl">
+            {getErrorIcon()}
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg mb-2">
+              {errorInfo.message}
+            </h3>
+            <div className="space-y-1.5">
+              <p className="font-medium text-sm">Please try:</p>
+              <ul className="space-y-1">
+                {errorInfo.tips.map((tip, index) => (
+                  <li key={index} className="flex items-start text-sm">
+                    <span className="mr-2">•</span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        {/* Retry button */}
+        <div className="mt-4 flex space-x-3">
+          <button
+            onClick={handleRetry}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-current rounded-lg font-semibold hover:bg-opacity-10 transition"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Try Again</span>
+          </button>
+          <button
+            onClick={resetImage}
+            className="px-4 py-2 bg-white border-2 border-current rounded-lg font-semibold hover:bg-opacity-10 transition"
+          >
+            Choose Different Photo
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -222,6 +448,9 @@ export default function AnalyzePage() {
                 className="hidden"
               />
 
+              {/* Error Display (if any) */}
+              {error && <ErrorDisplay errorInfo={error} />}
+
               {/* Tips */}
               <div className="bg-gradient-to-br from-rose-50 to-purple-50 rounded-2xl p-6">
                 <h4 className="font-semibold text-gray-900 mb-3">
@@ -260,7 +489,6 @@ export default function AnalyzePage() {
                   style={{ transform: 'scaleX(-1)' }}
                 />
                 
-                {/* Loading overlay while camera initializes */}
                 {!cameraReady && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -313,40 +541,38 @@ export default function AnalyzePage() {
                 )}
               </div>
 
-              {/* Error Message */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
-                  {error}
-                </div>
-              )}
+              {/* Error Display */}
+              {error && <ErrorDisplay errorInfo={error} />}
 
               {/* Action Buttons */}
-              <div className="flex space-x-4">
-                <button
-                  onClick={resetImage}
-                  disabled={analyzing}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Choose Different Photo
-                </button>
-                <button
-                  onClick={handleAnalyze}
-                  disabled={analyzing}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg transform hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
-                >
-                  {analyzing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Analyzing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      <span>Analyze Skin</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              {!error && (
+                <div className="flex space-x-4">
+                  <button
+                    onClick={resetImage}
+                    disabled={analyzing}
+                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-full font-semibold hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Choose Different Photo
+                  </button>
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={analyzing}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-full font-semibold hover:shadow-lg transform hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
+                  >
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>Analyze Skin</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
