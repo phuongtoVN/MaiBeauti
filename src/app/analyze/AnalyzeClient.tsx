@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { Camera, Upload, Loader2, Sparkles, ArrowLeft, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 // Error types for better error handling
 type ErrorType = 'face-not-detected' | 'poor-quality' | 'api-error' | 'general' | null;
@@ -15,6 +16,7 @@ interface ErrorInfo {
 
 export default function AnalyzePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<ErrorInfo | null>(null);
@@ -27,7 +29,7 @@ export default function AnalyzePage() {
   // Parse API error and return appropriate error info
   const parseError = (errorMessage: string, statusCode?: number): ErrorInfo => {
     const lowerMessage = errorMessage.toLowerCase();
-    
+
     // Face not detected
     if (lowerMessage.includes('face') && (lowerMessage.includes('not') || lowerMessage.includes('no'))) {
       return {
@@ -42,7 +44,7 @@ export default function AnalyzePage() {
         ]
       };
     }
-    
+
     // Poor quality
     if (lowerMessage.includes('quality') || lowerMessage.includes('resolution') || lowerMessage.includes('blur')) {
       return {
@@ -57,7 +59,7 @@ export default function AnalyzePage() {
         ]
       };
     }
-    
+
     // API/Service errors
     if (statusCode === 400 || statusCode === 500 || lowerMessage.includes('api') || lowerMessage.includes('service')) {
       return {
@@ -71,7 +73,7 @@ export default function AnalyzePage() {
         ]
       };
     }
-    
+
     // General error
     return {
       type: 'general',
@@ -100,7 +102,7 @@ export default function AnalyzePage() {
         });
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result as string);
@@ -125,22 +127,22 @@ export default function AnalyzePage() {
     try {
       setCameraReady(false);
       setError(null);
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'user',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        }
       });
-      
+
       streamRef.current = stream;
       setShowCamera(true);
-      
+
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          
+
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play()
               .then(() => {
@@ -161,7 +163,7 @@ export default function AnalyzePage() {
           };
         }
       }, 100);
-      
+
     } catch (err: any) {
       console.error('Camera error:', err);
       setError({
@@ -204,7 +206,7 @@ export default function AnalyzePage() {
         });
         return;
       }
-      
+
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
@@ -222,7 +224,7 @@ export default function AnalyzePage() {
           });
           return;
         }
-        
+
         setSelectedImage(imageData);
         stopCamera();
         setError(null);
@@ -238,13 +240,16 @@ export default function AnalyzePage() {
 
     try {
       console.log('📤 Sending image to API...');
-      
+
       const response = await fetch('/api/analyze-skin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ image: selectedImage }),
+        body: JSON.stringify({
+          image: selectedImage,
+          userId: user?.id
+        }),
       });
 
       const data = await response.json();
@@ -260,21 +265,24 @@ export default function AnalyzePage() {
         throw parseError('No analysis ID received');
       }
 
-      // Save uploaded image to localStorage
-      console.log('💾 Saving image to localStorage for analysis:', data.analysisId);
-      localStorage.setItem(`analysis_image_${data.analysisId}`, selectedImage);
-      
-      // Also save timestamp for cleanup
-      const timestamp = new Date().toISOString();
-      localStorage.setItem(`analysis_image_${data.analysisId}_timestamp`, timestamp);
-      
-      console.log('✅ Image saved successfully');
+      // Save uploaded image to localStorage (optional, ignore if quota exceeded)
+      try {
+        console.log('💾 Saving image to localStorage for analysis:', data.analysisId);
+        localStorage.setItem(`analysis_image_${data.analysisId}`, selectedImage);
+
+        // Also save timestamp for cleanup
+        const timestamp = new Date().toISOString();
+        localStorage.setItem(`analysis_image_${data.analysisId}_timestamp`, timestamp);
+        console.log('✅ Image saved locally');
+      } catch (e) {
+        console.warn('⚠️ Failed to save image to localStorage (quota exceeded), but analysis is saved to DB.');
+      }
 
       // Redirect to results page
       router.push(`/analyze/results?id=${data.analysisId}`);
     } catch (err: any) {
       console.error('❌ Analysis error:', err);
-      
+
       // If error is already parsed, use it
       if (err.type) {
         setError(err);
@@ -282,7 +290,7 @@ export default function AnalyzePage() {
         // Otherwise, parse it
         setError(parseError(err.message || 'Failed to analyze image'));
       }
-      
+
       setAnalyzing(false);
     }
   };
@@ -351,7 +359,7 @@ export default function AnalyzePage() {
             </div>
           </div>
         </div>
-        
+
         {/* Retry button */}
         <div className="mt-4 flex space-x-3">
           <button
@@ -378,7 +386,7 @@ export default function AnalyzePage() {
       <nav className="bg-white/80 backdrop-blur-md border-b border-rose-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <button 
+            <button
               onClick={() => router.push('/')}
               className="flex items-center space-x-2 text-gray-700 hover:text-rose-500 transition"
             >
@@ -488,13 +496,13 @@ export default function AnalyzePage() {
                   className="w-full max-h-96 object-cover"
                   style={{ transform: 'scaleX(-1)' }}
                 />
-                
+
                 {!cameraReady && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Loader2 className="w-8 h-8 text-white animate-spin" />
                   </div>
                 )}
-                
+
                 <button
                   onClick={stopCamera}
                   className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition"

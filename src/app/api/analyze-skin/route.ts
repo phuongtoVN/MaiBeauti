@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     // Validate input
     if (!image) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'No image provided' 
+          error: 'No image provided'
         },
         { status: 400 }
       );
@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     // Check if buffer is valid
     if (!buffer || buffer.length === 0) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Invalid image data' 
+          error: 'Invalid image data'
         },
         { status: 400 }
       );
@@ -63,9 +63,9 @@ export async function POST(request: NextRequest) {
       imageInfo = await sharp(buffer).metadata();
     } catch (error) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Invalid image format. Please upload a valid JPG or PNG.' 
+          error: 'Invalid image format. Please upload a valid JPG or PNG.'
         },
         { status: 400 }
       );
@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     if (imageInfo.width && imageInfo.width > 1024) {
       console.log('📐 Resizing image to optimize for Face++ API...');
       buffer = await sharp(buffer)
-        .resize(1024, null, { 
+        .resize(1024, null, {
           fit: 'inside',
-          withoutEnlargement: true 
+          withoutEnlargement: true
         })
         .jpeg({ quality: 85 })
         .toBuffer();
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
       validateImage(imageBase64);
     } catch (error: any) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: error.message 
+          error: error.message
         },
         { status: 400 }
       );
@@ -110,9 +110,35 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Face++ analysis complete');
 
-    // For now, we'll use a placeholder image URL
-    // TODO: Upload to Cloudinary in Phase 2
-    const imageUrl = 'placeholder-image-url';
+    // Upload image to Supabase Storage
+    console.log('📤 Uploading image to Supabase Storage...');
+    const filename = `analysis_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+
+    // Upload the buffer to the 'skin-analyses' bucket
+    const { data: uploadData, error: uploadError } = await supabaseAdmin
+      .storage
+      .from('skin-analyses')
+      .upload(filename, buffer, {
+        contentType: 'image/jpeg',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('❌ Storage upload error:', uploadError);
+      console.warn('⚠️ Falling back to placeholder image due to upload failure');
+    }
+
+    // Get public URL
+    let imageUrl = 'placeholder-image-url';
+    if (uploadData) {
+      const { data: { publicUrl } } = supabaseAdmin
+        .storage
+        .from('skin-analyses')
+        .getPublicUrl(filename);
+
+      imageUrl = publicUrl;
+      console.log('✅ Image uploaded successfully:', imageUrl);
+    }
 
     // Save analysis to database
     console.log('💾 Saving analysis to database...');
@@ -155,7 +181,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('💥 Analysis error:', error);
-    
+
     return NextResponse.json(
       {
         success: false,

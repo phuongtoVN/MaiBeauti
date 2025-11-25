@@ -27,6 +27,7 @@ interface ApiAnalysisResult {
   darkCirclesSeverity?: number; // ← Optional (for new backend)
   age: number;
   concerns: string[];
+  imageUrl?: string;            // ✨ NEW: Image URL from database
   createdAt: string;
 }
 
@@ -61,7 +62,7 @@ export default function AnalysisResultsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const analysisId = searchParams.get('id');
-  
+
   // State
   const [analysis, setAnalysis] = useState<ApiAnalysisResult | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -70,14 +71,14 @@ export default function AnalysisResultsPage() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
-  
+
   // ✨ NEW: State for uploaded image
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  
+
   const { addItem, openCart, clearCart } = useCartStore();
   const { setCurrentAnalysis, setPersonalizedKit } = useAnalysisStore();
   const { addToast } = useToastStore();
-  
+
   // Fetch Analysis Results from Real API
   useEffect(() => {
     if (!analysisId) {
@@ -106,10 +107,10 @@ export default function AnalysisResultsPage() {
   // ✨ NEW: Helper function to clean up old analysis images
   const cleanupOldImages = () => {
     try {
-      const keys = Object.keys(localStorage).filter(key => 
+      const keys = Object.keys(localStorage).filter(key =>
         key.startsWith('analysis_image_') && !key.includes('_timestamp')
       );
-      
+
       if (keys.length > 10) {
         // Get timestamps and sort
         const imagesWithTimestamps = keys.map(key => {
@@ -117,14 +118,14 @@ export default function AnalysisResultsPage() {
           const timestamp = localStorage.getItem(timestampKey) || '';
           return { key, timestamp };
         }).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-        
+
         // Remove oldest images
         const toRemove = imagesWithTimestamps.slice(0, keys.length - 10);
         toRemove.forEach(({ key }) => {
           localStorage.removeItem(key);
           localStorage.removeItem(`${key}_timestamp`);
         });
-        
+
         console.log('🧹 Cleaned up', toRemove.length, 'old analysis images');
       }
     } catch (err) {
@@ -145,7 +146,7 @@ export default function AnalysisResultsPage() {
   const fetchAnalysis = async () => {
     try {
       console.log('🔍 Fetching analysis:', analysisId);
-      
+
       const response = await fetch(`/api/analyze-skin/results?id=${analysisId}`);
       const data = await response.json();
 
@@ -161,7 +162,7 @@ export default function AnalysisResultsPage() {
       }
 
       const apiData = data.analysis;
-      
+
       console.log('✅ Analysis data:', apiData);
 
       // ✨ UPDATED: Extract severity scores if available (new backend)
@@ -177,6 +178,7 @@ export default function AnalysisResultsPage() {
         darkCirclesSeverity: apiData.darkCirclesSeverity, // ← May be undefined
         age: apiData.age || 25,
         concerns: apiData.concerns || [],
+        imageUrl: apiData.imageUrl, // ✨ NEW: Map image URL
         createdAt: apiData.createdAt || new Date().toISOString(),
       };
 
@@ -192,10 +194,16 @@ export default function AnalysisResultsPage() {
       }
 
       setAnalysis(safeAnalysis);
-      
+
+      // ✨ NEW: If we have a database image, use it!
+      if (safeAnalysis.imageUrl && safeAnalysis.imageUrl !== 'placeholder-image-url') {
+        console.log('🖼️ Using database image:', safeAnalysis.imageUrl);
+        setUploadedImage(safeAnalysis.imageUrl);
+      }
+
       const analysisForStore = {
         analysisId: safeAnalysis.id,
-        imageUrl: uploadedImage || 'https://images.unsplash.com/photo-1616683693094-0b7f3c7e9d00?w=600&h=600&fit=crop',
+        imageUrl: safeAnalysis.imageUrl || uploadedImage || 'https://images.unsplash.com/photo-1616683693094-0b7f3c7e9d00?w=600&h=600&fit=crop',
         skinQualityScore: safeAnalysis.skinScore,
         primaryConcerns: mapConcerns(safeAnalysis),
         skinTone: 'Medium',
@@ -203,9 +211,9 @@ export default function AnalysisResultsPage() {
         timestamp: safeAnalysis.createdAt,
       };
       setCurrentAnalysis(analysisForStore as any);
-      
+
       setLoading(false);
-      
+
     } catch (err: any) {
       console.error('❌ Error loading analysis:', err);
       setError(err.message);
@@ -215,15 +223,15 @@ export default function AnalysisResultsPage() {
 
   const fetchRecommendations = async () => {
     if (!analysisId) return;
-    
+
     setLoadingProducts(true);
     try {
       console.log('🔦 Fetching recommendations for:', analysisId);
-      
+
       const response = await fetch(
         `/api/products/recommendations?analysisId=${analysisId}`
       );
-      
+
       const data = await response.json();
       console.log('🎯 Recommendations response:', data);
 
@@ -245,13 +253,13 @@ export default function AnalysisResultsPage() {
   // ✨ SMART: Works with both old and new backend!
   const mapConcerns = (apiResult: ApiAnalysisResult): SkinConcern[] => {
     const concerns: SkinConcern[] = [];
-    
+
     // Check if we have the new severity scores from backend
     const hasNewSeverityScores = apiResult.acneSeverity !== undefined;
-    
+
     if (hasNewSeverityScores) {
       console.log('📊 Using NEW backend severity scores');
-      
+
       // NEW BACKEND: Only show concerns with severity > 0
       if (apiResult.acneSeverity! > 0) {
         concerns.push({
@@ -263,7 +271,7 @@ export default function AnalysisResultsPage() {
           color: 'red'
         });
       }
-      
+
       if (apiResult.poresSeverity! > 0) {
         concerns.push({
           id: 'pores',
@@ -274,7 +282,7 @@ export default function AnalysisResultsPage() {
           color: 'orange'
         });
       }
-      
+
       if (apiResult.darkCirclesSeverity! > 0) {
         concerns.push({
           id: 'dark-circles',
@@ -287,7 +295,7 @@ export default function AnalysisResultsPage() {
       }
     } else {
       console.log('📊 Using OLD backend - fallback to hardcoded scores');
-      
+
       // OLD BACKEND: Show all non-'none' concerns (like before)
       if (apiResult.acneLevel && apiResult.acneLevel !== 'none') {
         concerns.push({
@@ -299,7 +307,7 @@ export default function AnalysisResultsPage() {
           color: 'red'
         });
       }
-      
+
       if (apiResult.poresLevel && apiResult.poresLevel !== 'none') {
         concerns.push({
           id: 'pores',
@@ -310,7 +318,7 @@ export default function AnalysisResultsPage() {
           color: 'orange'
         });
       }
-      
+
       if (apiResult.darkCirclesLevel && apiResult.darkCirclesLevel !== 'none') {
         concerns.push({
           id: 'dark-circles',
@@ -322,11 +330,11 @@ export default function AnalysisResultsPage() {
         });
       }
     }
-    
-    console.log(`📋 Mapped ${concerns.length} concerns:`, 
+
+    console.log(`📋 Mapped ${concerns.length} concerns:`,
       concerns.map(c => `${c.name}: ${c.severity}/100`)
     );
-    
+
     return concerns;
   };
 
@@ -367,7 +375,7 @@ export default function AnalysisResultsPage() {
       let step = 1;
 
       const findProduct = (category: string) => {
-        return recommendedProducts.find(p => 
+        return recommendedProducts.find(p =>
           p.category?.toLowerCase() === category.toLowerCase()
         );
       };
@@ -378,14 +386,14 @@ export default function AnalysisResultsPage() {
           step: step++,
           timeOfDay,
           product: cleanser,
-          instruction: timeOfDay === 'morning' 
-            ? 'Cleanse with lukewarm water, gently massage' 
+          instruction: timeOfDay === 'morning'
+            ? 'Cleanse with lukewarm water, gently massage'
             : 'Double cleanse if wearing makeup'
         });
       }
 
       if (concerns.includes('acne')) {
-        const acneTreatment = recommendedProducts.find(p => 
+        const acneTreatment = recommendedProducts.find(p =>
           p.concerns?.includes('acne') && p.category !== 'cleanser'
         );
         if (acneTreatment) {
@@ -442,7 +450,7 @@ export default function AnalysisResultsPage() {
     const uniqueProducts = Array.from(
       new Map(allProducts.map(s => [s.product.id, s.product])).values()
     );
-    
+
     const totalPrice = uniqueProducts.reduce((sum, p) => sum + p.price, 0);
     const savings = Math.round(totalPrice * 0.25);
     const bundlePrice = totalPrice - savings;
@@ -487,40 +495,40 @@ export default function AnalysisResultsPage() {
   }
 
   const concerns = mapConcerns(analysis);
-  
+
   const handleAddToCart = (product: Product) => {
     console.log('Results page: Adding to cart ->', product.name);
     addItem(product);
     addToast(`Added ${product.name} to cart!`, 'success');
     openCart();
   };
-  
+
   const handleGetKit = () => {
     if (!personalizedKit) return;
-    
+
     clearCart();
-    
+
     const allKitProducts = new Set([
       ...personalizedKit.morningRoutine.map(step => step.product),
       ...personalizedKit.eveningRoutine.map(step => step.product)
     ]);
-    
+
     allKitProducts.forEach(product => {
       addItem(product);
     });
-    
+
     addToast(`Added complete kit (${allKitProducts.size} products) to cart!`, 'success');
     openCart();
   };
-  
+
   const handleFixConcern = (concernId: string) => {
     document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
   };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="pt-32 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
@@ -538,7 +546,7 @@ export default function AnalysisResultsPage() {
               We've identified your key concerns and created a personalized treatment plan
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-8 items-center">
             {/* ✨ UPDATED: Show uploaded photo or fallback */}
             <div className="relative">
@@ -569,7 +577,7 @@ export default function AnalysisResultsPage() {
                 <div className="text-xl font-bold text-gray-900">{analysis.age}</div>
               </div>
             </div>
-            
+
             {/* Score Gauge */}
             <div className="flex flex-col items-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -583,7 +591,7 @@ export default function AnalysisResultsPage() {
           </div>
         </div>
       </section>
-      
+
       {/* Concerns Grid */}
       {concerns.length > 0 && (
         <section className="py-16 px-4 bg-white">
@@ -596,7 +604,7 @@ export default function AnalysisResultsPage() {
                 Let's address these issues with targeted treatments
               </p>
             </div>
-            
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {concerns.map((concern) => (
                 <ConcernCard
@@ -609,7 +617,7 @@ export default function AnalysisResultsPage() {
           </div>
         </section>
       )}
-      
+
       {/* Product Recommendations */}
       {loadingProducts ? (
         <section className="py-16 px-4">
@@ -629,7 +637,7 @@ export default function AnalysisResultsPage() {
                 Based on your concerns: <strong>{analysis.concerns.join(', ')}</strong>
               </p>
             </div>
-            
+
             <ProductCarousel
               products={products.slice(0, 6)}
               onAddToCart={handleAddToCart}
@@ -637,7 +645,7 @@ export default function AnalysisResultsPage() {
           </div>
         </section>
       ) : null}
-      
+
       {/* Complete Kit Showcase */}
       {personalizedKit && (
         <section className="py-16 px-4">
@@ -649,7 +657,7 @@ export default function AnalysisResultsPage() {
           </div>
         </section>
       )}
-      
+
       {/* Social Proof - Before/After */}
       <section className="py-16 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
@@ -661,7 +669,7 @@ export default function AnalysisResultsPage() {
               Join thousands who've transformed their skin with MaiBeauti
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {mockTestimonials.map((testimonial) => (
               <BeforeAfterCard
@@ -672,7 +680,7 @@ export default function AnalysisResultsPage() {
           </div>
         </div>
       </section>
-      
+
       {/* Final CTA */}
       {personalizedKit && (
         <section className="py-20 px-4 bg-gradient-to-r from-rose-500 to-purple-600">
@@ -695,7 +703,7 @@ export default function AnalysisResultsPage() {
           </div>
         </section>
       )}
-      
+
       {/* Floating Chat Button (Mobile) */}
       <button
         onClick={() => setShowChat(true)}
@@ -703,16 +711,16 @@ export default function AnalysisResultsPage() {
       >
         <MessageCircle className="w-6 h-6" />
       </button>
-      
+
       {/* Mobile Chat Modal */}
       {showChat && (
         <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
           <div className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-2xl max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-center">
               <h3 className="text-lg font-bold text-gray-900">Chat with Mai</h3>
               <button
                 onClick={() => setShowChat(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="absolute right-4 p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>

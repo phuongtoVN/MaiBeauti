@@ -1,11 +1,10 @@
 /**
  * Supabase Client Configuration
  * 
- * This file creates two Supabase clients:
- * 1. supabase - For client-side operations (safe to use in browser)
- * 2. supabaseAdmin - For server-side operations (use in API routes only)
+ * This file creates Supabase clients for both client-side and server-side operations
  */
 
+import { createBrowserClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 
 // Validate environment variables
@@ -18,78 +17,72 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
 }
 
 /**
- * Client-side Supabase client
+ * Client-side Supabase client with SSR support
  * Use this in React components and client-side code
- * Has row-level security enabled
+ * Properly handles cookies and session persistence
  */
-export const supabase = createClient(
+export const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 /**
- * Server-side Supabase client (Admin)
- * Use this ONLY in API routes (src/app/api/...)
- * Bypasses row-level security - use carefully!
+ * Admin client for server-side operations
+ * Use this ONLY in API routes or server components
+ * Bypasses row-level security
  */
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+export const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
+  : null;
 
-/**
- * Database type definitions
- * Add these as you build out your schema
- */
-export type Product = {
+// Type definitions for database tables
+export interface Product {
   id: string;
   name: string;
-  description: string | null;
+  description: string;
   price: number;
-  discount_price: number | null;
+  image_url: string;
   category: string;
-  skin_types: string[] | null;
-  concerns: string[] | null;
-  image_url: string | null;
-  images: string[] | null;
+  ingredients: string[];
+  benefits: string[];
+  skin_types: string[];
+  concerns: string[];
   rating: number;
-  review_count: number;
-  ingredients: string[] | null;
-  how_to_use: string | null;
-  size: string | null;
+  reviews_count: number;
   in_stock: boolean;
   created_at: string;
-  updated_at: string;
-};
+}
 
-export type SkinAnalysis = {
+export interface SkinAnalysis {
   id: string;
-  user_id: string | null;
+  user_id: string;
   image_url: string;
+  skin_score: number;
+  concerns: string[];
+  recommendations: string[];
+  acne_level: string;
+  wrinkles_level: string;
+  dark_circles: string;
+  skin_tone: string;
   facepp_response: any;
-  skin_score: number | null;
-  acne_level: string | null;
-  pores_level: string | null;
-  wrinkles_level: string | null;
-  dark_circles: string | null;
-  skin_tone: string | null;
-  concerns: string[] | null;
   created_at: string;
-};
+}
 
-export type Order = {
+export interface Order {
   id: string;
-  user_id: string | null;
-  email: string;
+  user_id: string;
   total_amount: number;
-  subtotal: number;
-  tax: number;
-  shipping: number;
-  discount: number;
-  promo_code: string | null;
   status: string;
   shipping_address: any;
-  stripe_payment_intent: string | null;
   created_at: string;
   updated_at: string;
-};
+}

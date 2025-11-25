@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
 
     if (!analysisId) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Analysis ID is required' 
+          error: 'Analysis ID is required'
         },
         { status: 400 }
       );
@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
 
     if (!analysis) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'Analysis not found' 
+          error: 'Analysis not found'
         },
         { status: 404 }
       );
@@ -63,13 +63,14 @@ export async function GET(request: NextRequest) {
         poresLevel: analysis.pores_level,
         darkCircles: analysis.dark_circles,
         concerns: analysis.concerns,
+        imageUrl: analysis.image_url,
         createdAt: analysis.created_at,
       },
     });
 
   } catch (error: any) {
     console.error('💥 Error fetching analysis:', error);
-    
+
     return NextResponse.json(
       {
         success: false,
