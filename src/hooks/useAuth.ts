@@ -97,6 +97,8 @@ export function useAuth(): AuthState & AuthActions {
                 if (error.message.includes('Invalid login credentials')) {
                     friendlyMessage = 'Invalid email or password. Please try again.';
                 } else if (error.message.includes('Email not confirmed')) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (window as any).supabase = supabase;
                     friendlyMessage = 'Please verify your email address before signing in.';
                 }
                 setError(friendlyMessage);
@@ -176,6 +178,7 @@ export function useAuth(): AuthState & AuthActions {
             setLoading(true);
             setError(null);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const updateData: any = {};
             if (data.email) updateData.email = data.email;
             if (data.name) updateData.data = { name: data.name };

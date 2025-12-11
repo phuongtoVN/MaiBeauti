@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import ScoreGauge from '@/components/results/ScoreGauge';
@@ -58,7 +58,7 @@ interface PersonalizedKit {
   bundlePrice: number;
 }
 
-export default function AnalysisResultsPage() {
+function AnalysisResultsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const analysisId = searchParams.get('id');
@@ -734,5 +734,17 @@ export default function AnalysisResultsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AnalysisResultsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-purple-50 flex items-center justify-center">
+        <Loader2 className="w-16 h-16 animate-spin text-rose-500" />
+      </div>
+    }>
+      <AnalysisResultsContent />
+    </Suspense>
   );
 }

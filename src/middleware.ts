@@ -16,6 +16,7 @@ export async function middleware(req: NextRequest) {
                 get(name: string) {
                     return req.cookies.get(name)?.value;
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 set(name: string, value: string, options: any) {
                     req.cookies.set({
                         name,
@@ -33,6 +34,7 @@ export async function middleware(req: NextRequest) {
                         ...options,
                     });
                 },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 remove(name: string, options: any) {
                     req.cookies.set({
                         name,

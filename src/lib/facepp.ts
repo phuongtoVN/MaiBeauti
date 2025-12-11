@@ -98,10 +98,10 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
     const face = data.faces[0];
     const age = Math.round(face.attributes.age.value);
     const gender = face.attributes.gender.value;
-    
+
     // Use appropriate beauty score
-    const beautyScore = gender === 'Male' 
-      ? face.attributes.beauty.male_score 
+    const beautyScore = gender === 'Male'
+      ? face.attributes.beauty.male_score
       : face.attributes.beauty.female_score;
 
     // Derive skin analysis
@@ -120,6 +120,7 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
       rawResponse: data,
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('❌ Face++ analysis error:', error.message);
     throw error;
@@ -133,9 +134,9 @@ export async function analyzeSkin(imageBase64: string): Promise<SkinAnalysisResu
 function deriveSkinAnalysis(beautyScore: number, age: number) {
   // Normalize beauty score (reduce bias)
   let normalizedScore = beautyScore;
-  
+
   console.log(`📊 Original beauty score: ${beautyScore}`);
-  
+
   // Boost lower scores significantly
   if (normalizedScore < 60) {
     normalizedScore = normalizedScore * 1.3;
@@ -144,7 +145,7 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
     normalizedScore = normalizedScore * 1.15;
     console.log(`   🔼 Boosted mid score by 15%: ${normalizedScore.toFixed(1)}`);
   }
-  
+
   // Gentler age adjustment
   if (age > 50) {
     normalizedScore -= 5;
@@ -153,19 +154,19 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
     normalizedScore -= 3;
     console.log(`   ⬇️  Age penalty (40+): -3 points`);
   }
-  
+
   // Minimum score of 40
   const skinScore = Math.max(40, Math.min(100, Math.round(normalizedScore)));
-  
+
   console.log(`   ✅ Final skin score: ${skinScore}/100`);
 
   // IMPROVED: More conservative thresholds
   // Only assign "acne" concern if score is truly low
   // This reduces false positives for freckles
-  
+
   let acneLevel: 'none' | 'mild' | 'moderate' | 'severe';
   let acneSeverity: number;
-  
+
   if (normalizedScore >= 80) {
     acneLevel = 'none';
     acneSeverity = 0;
@@ -183,7 +184,7 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
   // Pores assessment - also more conservative
   let poresLevel: 'none' | 'mild' | 'moderate' | 'severe';
   let poresSeverity: number;
-  
+
   if (normalizedScore >= 75) {
     poresLevel = 'none';
     poresSeverity = 0;
@@ -202,7 +203,7 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
   let darkCirclesLevel: 'none' | 'mild' | 'moderate' | 'severe';
   let darkCirclesSeverity: number;
   const ageAdjustedScore = normalizedScore - (age > 35 ? 5 : 0);
-  
+
   if (ageAdjustedScore >= 75) {
     darkCirclesLevel = 'none';
     darkCirclesSeverity = 0;
@@ -220,22 +221,22 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
   // IMPROVED: Only add concerns for moderate/severe issues
   // AND only if we're confident (higher thresholds)
   const concerns: string[] = [];
-  
+
   // Only add acne if severe OR if score is very low
   if (acneLevel === 'severe' || (acneLevel === 'moderate' && normalizedScore < 60)) {
     concerns.push('acne');
   }
-  
+
   // Only add pores if severe OR if score is very low
   if (poresLevel === 'severe' || (poresLevel === 'moderate' && normalizedScore < 55)) {
     concerns.push('pores');
   }
-  
+
   // Only add dark circles if moderate/severe
   if (darkCirclesLevel === 'moderate' || darkCirclesLevel === 'severe') {
     concerns.push('dark-circles');
   }
-  
+
   // Aging concern threshold
   if (age >= 40) {
     concerns.push('aging');
@@ -245,7 +246,7 @@ function deriveSkinAnalysis(beautyScore: number, age: number) {
   if (concerns.length === 0 && skinScore >= 65) {
     concerns.push('hydration');
   }
-  
+
   // If score is low but no specific concerns identified
   // (like someone with freckles), add general "skin-health"
   if (concerns.length === 0 && skinScore < 65) {

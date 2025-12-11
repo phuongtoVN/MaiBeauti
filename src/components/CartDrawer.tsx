@@ -87,7 +87,7 @@ export default function CartDrawer() {
         {hasFreeShipping && items.length > 0 && (
           <div className="p-4 bg-green-50 border-b border-green-200">
             <p className="text-sm text-green-800 text-center font-semibold">
-              ✓ You've unlocked free shipping!
+              ✓ You&apos;ve unlocked free shipping!
             </p>
           </div>
         )}

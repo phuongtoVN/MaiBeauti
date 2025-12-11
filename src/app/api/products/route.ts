@@ -52,12 +52,12 @@ export async function GET(request: NextRequest) {
       products: products || [],
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Products API error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to fetch products',
+        error: (error as Error).message || 'Failed to fetch products',
       },
       { status: 500 }
     );

@@ -24,25 +24,25 @@ export async function seedProducts() {
       description: product.description,
       price: product.price,
       category: product.category,
-      
+
       // Optional pricing
       discount_price: product.discountPrice || null,
-      
+
       // Arrays
       skin_types: product.skinType || [],
       concerns: product.concerns || [],
       images: product.images || [],
       ingredients: product.ingredients || [],
-      
+
       // Strings
       image_url: product.image || null,
       how_to_use: product.howToUse || null,
       size: product.size || '50ml',
-      
+
       // Numbers
       rating: product.rating || 0,
       review_count: product.reviewCount || 0,
-      
+
       // Boolean
       in_stock: product.inStock !== undefined ? product.inStock : true,
     }));
@@ -61,7 +61,7 @@ export async function seedProducts() {
     if (existingProducts && existingProducts.length > 0) {
       console.log(`⚠️  Found ${existingProducts.length} existing products`);
       console.log('🗑️  Clearing existing products...');
-      
+
       // Delete existing products
       const { error: deleteError } = await supabaseAdmin
         .from('products')
@@ -71,13 +71,13 @@ export async function seedProducts() {
       if (deleteError) {
         throw deleteError;
       }
-      
+
       console.log('✅ Existing products cleared');
     }
 
     // Insert new products
     console.log('📥 Inserting products into database...');
-    
+
     const { data, error } = await supabaseAdmin
       .from('products')
       .insert(productsData)
@@ -89,7 +89,7 @@ export async function seedProducts() {
 
     console.log('✅ Products seeded successfully!');
     console.log(`📊 Inserted ${data?.length || 0} products`);
-    
+
     // Show first 3 products as sample
     if (data && data.length > 0) {
       console.log('\n📦 Sample products:');
@@ -104,8 +104,8 @@ export async function seedProducts() {
       products: data,
     };
 
-  } catch (error: any) {
-    console.error('❌ Error seeding products:', error.message);
+  } catch (error) {
+    console.error('❌ Error seeding products:', (error as Error).message);
     throw error;
   }
 }

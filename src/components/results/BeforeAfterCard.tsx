@@ -11,26 +11,26 @@ interface BeforeAfterCardProps {
 export default function BeforeAfterCard({ testimonial }: BeforeAfterCardProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const handleMove = (clientX: number, rect: DOMRect) => {
     const x = clientX - rect.left;
     const percentage = (x / rect.width) * 100;
     setSliderPosition(Math.max(0, Math.min(100, percentage)));
   };
-  
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const rect = e.currentTarget.getBoundingClientRect();
     handleMove(e.clientX, rect);
   };
-  
+
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const touch = e.touches[0];
     const rect = e.currentTarget.getBoundingClientRect();
     handleMove(touch.clientX, rect);
   };
-  
+
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300">
       {/* Before/After Slider */}
@@ -56,7 +56,7 @@ export default function BeforeAfterCard({ testimonial }: BeforeAfterCardProps) {
             BEFORE
           </div>
         </div>
-        
+
         {/* After Image */}
         <div
           className="absolute inset-0 overflow-hidden"
@@ -72,7 +72,7 @@ export default function BeforeAfterCard({ testimonial }: BeforeAfterCardProps) {
             AFTER
           </div>
         </div>
-        
+
         {/* Slider Handle */}
         <div
           className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize"
@@ -86,7 +86,7 @@ export default function BeforeAfterCard({ testimonial }: BeforeAfterCardProps) {
           </div>
         </div>
       </div>
-      
+
       {/* Testimonial Content */}
       <div className="p-6">
         {/* Name and Age */}
@@ -100,21 +100,21 @@ export default function BeforeAfterCard({ testimonial }: BeforeAfterCardProps) {
             ))}
           </div>
         </div>
-        
+
         {/* Concern Tag */}
         <div className="inline-block px-3 py-1 bg-rose-50 text-rose-700 text-sm font-semibold rounded-full mb-3">
           {testimonial.concern}
         </div>
-        
+
         {/* Timeline */}
         <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
           <Calendar className="w-4 h-4" />
           <span>Results in {testimonial.timeline}</span>
         </div>
-        
+
         {/* Quote */}
         <p className="text-gray-700 italic">
-          "{testimonial.quote}"
+          &quot;{testimonial.quote}&quot;
         </p>
       </div>
     </div>

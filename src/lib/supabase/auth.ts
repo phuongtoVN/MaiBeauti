@@ -107,7 +107,7 @@ export async function getUser() {
 export async function updateProfile(updates: {
   email?: string;
   password?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }) {
   try {
     const { data, error } = await supabase.auth.updateUser(updates);
@@ -158,7 +158,8 @@ export async function verifyOtp(email: string, token: string, type: 'email' | 's
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
-      type,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type: type as any,
     });
 
     if (error) throw error;
@@ -172,7 +173,7 @@ export async function verifyOtp(email: string, token: string, type: 'email' | 's
  * Subscribe to auth state changes
  */
 export function onAuthStateChange(
-  callback: (event: string, session: any) => void
+  callback: (event: string, session: unknown) => void
 ) {
   return supabase.auth.onAuthStateChange(callback);
 }

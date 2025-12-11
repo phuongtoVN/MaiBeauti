@@ -73,6 +73,7 @@ export interface SkinAnalysis {
   wrinkles_level: string;
   dark_circles: string;
   skin_tone: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   facepp_response: any;
   created_at: string;
 }
@@ -82,6 +83,7 @@ export interface Order {
   user_id: string;
   total_amount: number;
   status: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   shipping_address: any;
   created_at: string;
   updated_at: string;
